@@ -13,7 +13,7 @@ public class Window extends JFrame {
     private MapDatabase mapDatabase;
 
     public Window() {
-        setPreferredSize(new Dimension(640, 480));
+        setPreferredSize(new Dimension(1200, 220));
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         chart = new Chart();

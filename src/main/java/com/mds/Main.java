@@ -23,8 +23,18 @@ class Main {
         Thread.sleep(1000);
 
         log.info("indexing...");
-        md.calcFreeRegionsSequentially("/tmp/test.dat");
+        if(!md.calcFreeRegionsNonSequentially("/tmp/test.dat")) {
+            log.error("fatal");
+            System.exit(1);
+        }
+
         md.dump();
+
+        long c;
+        int lvl = 2 * 1024 * 1024;
+        c = md.getCountForOffset(lvl, 2097150);
+
+        log.info("Done.");
     }
 
     public void runGui(MapDatabase md) {

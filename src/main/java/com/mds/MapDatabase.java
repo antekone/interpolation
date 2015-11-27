@@ -10,6 +10,7 @@ import java.util.concurrent.*;
 public class MapDatabase {
     private HashMap<Integer, List<MapEntryZeroes>> map;
     private Semaphore lock = new Semaphore(1);
+    private @Getter long maxFileSize = 0;
 
     MapDatabase() {
         map = new HashMap<>();
@@ -26,11 +27,58 @@ public class MapDatabase {
         lock.release();
     }
 
+    public long getCountForOffset(int zoomLevel, long offset) throws InterruptedException {
+        long offs = Long.MAX_VALUE;
+        List<MapEntryZeroes> lst = getArrayForZoomLevel(zoomLevel);
+        MapEntryZeroes foundItem = null;
+
+        for(MapEntryZeroes item: lst) {
+            long offsetDifference = Math.abs(offset - item.getOffset());
+            if(offsetDifference < offs) {
+                offs = offsetDifference;
+                foundItem = item;
+            }
+        }
+
+//        log.info("requested count for offset {}, but via interpolation returning count for offset {} = {}", offset, foundItem.getOffset(), foundItem.getCount());
+        long count = foundItem.getCount();
+        putArrayForZoomLevel(0);
+        return count;
+    }
+
+    public boolean calcFreeRegionsNonSequentially(String filename) throws IOException, InterruptedException {
+        log.info("Will map this file: {}", filename);
+
+        File f = new File(filename);
+        long fileSize = f.length();
+        maxFileSize = fileSize;
+        long origFileSize = fileSize;
+
+        log.info("File size: {}", fileSize);
+
+        int regionCount = 25;
+        long chunkSize = fileSize / regionCount;
+        long regionOffset = 0;
+        long regionEndOffset = 0;
+        int readSize = 2 * 1024 * 1024;
+
+        for(int i = 0; i < regionCount; i++) {
+            regionEndOffset = regionOffset + chunkSize;
+            regionEndOffset = Math.min(regionEndOffset, fileSize);
+
+            log.info("Region {}, range {}-{}", i, regionOffset, regionEndOffset, readSize);
+            regionOffset = regionEndOffset + 1;
+        }
+
+        return false;
+    }
+
     public boolean calcFreeRegionsSequentially(String filename) throws IOException, InterruptedException {
         log.info("Will map this file: {}", filename);
         File f = new File(filename);
         long fileSize = f.length();
         long origFileSize = fileSize;
+        maxFileSize = origFileSize;
 
         log.info("File size: {}", fileSize);
 
@@ -59,6 +107,7 @@ public class MapDatabase {
 
         while(fileSize > 0) {
             int ret = fis.read(buffer);
+            Thread.sleep(3);
             if(readSize != ret) {
                 if(processed + ret == origFileSize) {
                     log.info("Done!");

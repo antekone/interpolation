@@ -56,9 +56,7 @@ class Chart extends JPanel {
             g.drawString(text, 2, 2 + (int) textBounds.getHeight());
 
             if(md != null) {
-                java.util.List<MapEntryZeroes> lst = md.getArrayForZoomLevel(2 * 1024 * 1024);
-                drawLst(g, lst);
-                md.putArrayForZoomLevel(2 * 1024 * 1024);
+                drawLst(g);
             }
         } catch(InterruptedException e) {
         } finally {
@@ -66,10 +64,23 @@ class Chart extends JPanel {
         }
     }
 
-    public void drawLst(Graphics2D g, java.util.List<MapEntryZeroes> lst) {
-        log.info("drawing");
+    public void drawLst(Graphics2D g) throws InterruptedException {
         g.setColor(Color.black);
-        g.fillRect(1, 50, 5, 70);
+
+        if(md.getMaxFileSize() == 0)
+            return;
+
+        int slices = getWidth() / 5;
+        for(int i = 0; i < slices; i++) {
+            double prc = (double) i / slices;
+            long off = (long) (prc * (double) md.getMaxFileSize());
+            long count = md.getCountForOffset(2 * 1024 * 1024, off);
+
+            long fill = 100 - (count * 100 / (2*1024*1024));
+            g.fillRect(i*5, getHeight() - (int) fill, 5, (int) fill);
+
+//            log.info("x={}-{}, slice={}/{}, prc={}, off={}, count={}, fill={}%", i*5, i*5+5, i, slices, prc, off, count, fill);
+        }
     }
 
     public String getCurState() {
