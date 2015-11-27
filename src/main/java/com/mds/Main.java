@@ -11,21 +11,32 @@ import java.io.*;
 @Slf4j
 class Main {
     public static void main(String[] args) throws IOException, InterruptedException {
-        new Main().runMapper();
+        if(args[0].equals("--seq"))
+            new Main().runMapper(true);
+        else
+            new Main().runMapper(false);
     }
 
     private Window w;
 
-    public void runMapper() throws IOException, InterruptedException {
+    public void runMapper(boolean seq) throws IOException, InterruptedException {
         MapDatabase md = new MapDatabase();
         runGui(md);
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         log.info("indexing...");
-        if(!md.calcFreeRegionsNonSequentially("/tmp/test.dat")) {
-            log.error("fatal");
-            System.exit(1);
+
+        if(!seq) {
+            if(!md.calcFreeRegionsNonSequentially("/tmp/test.dat")) {
+                log.error("fatal");
+                System.exit(1);
+            }
+        } else {
+            if(!md.calcFreeRegionsSequentially("/tmp/test.dat")) {
+                log.error("fatal");
+                System.exit(1);
+            }
         }
 
         md.dump();

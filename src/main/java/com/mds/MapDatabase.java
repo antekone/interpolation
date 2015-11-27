@@ -62,7 +62,13 @@ public class MapDatabase {
         long regionEndOffset = 0;
         int readSize = 2 * 1024 * 1024;
 
+        long[] offsets = new long[regionCount];
+        long[] originalOffsets = new long[regionCount];
+
         for(int i = 0; i < regionCount; i++) {
+            offsets[i] = regionOffset;
+            originalOffsets[i] = regionOffset;
+
             regionEndOffset = regionOffset + chunkSize;
             regionEndOffset = Math.min(regionEndOffset, fileSize);
 
@@ -70,7 +76,54 @@ public class MapDatabase {
             regionOffset = regionEndOffset + 1;
         }
 
-        return false;
+        RandomAccessFile raf = new RandomAccessFile(f, "r");
+        byte[] buffer = new byte[readSize];
+
+        boolean readSth = false;
+        do {
+            log.info("--- next iteration ---");
+            readSth = false;
+            for(int i = 0; i < regionCount; i++) {
+                if(offsets[i] == -1)
+                    continue;
+
+                readSth = true;
+                log.info("offset {}, seeking to {}, reading {} bytes", i, offsets[i], buffer.length);
+
+                raf.seek(offsets[i]);
+
+                int toread = buffer.length;
+                if(offsets[i] + toread > origFileSize) {
+                    toread = (int) (origFileSize - offsets[i]);
+                    log.info("fixed last buffer count to be {} bytes.", toread);
+                }
+
+                raf.readFully(buffer, 0, toread);
+
+                Thread.sleep(11);
+
+                MapEntryZeroes mez = new MapEntryZeroes();
+                int count = calcEmptyBytes(buffer);
+                mez.setOffset(offsets[i]);
+                mez.setCount(count);
+
+                List<MapEntryZeroes> lst = getArrayForZoomLevel(readSize);
+                lst.add(mez);
+                putArrayForZoomLevel(0);
+
+                offsets[i] += readSize;
+
+                if(i != regionCount - 1 && offsets[i] >= originalOffsets[i + 1]) {
+                    log.info("offset no. {} is being turned off, because we already finished out chunk size.", i);
+                    offsets[i] = -1;
+                } else if(i == regionCount - 1 && offsets[i] >= origFileSize) {
+                    log.info("last offset no. {} is being turned off.", i);
+                    offsets[i] = -1;
+                }
+            }
+        } while(readSth);
+
+        return true;
     }
 
     public boolean calcFreeRegionsSequentially(String filename) throws IOException, InterruptedException {
@@ -107,7 +160,7 @@ public class MapDatabase {
 
         while(fileSize > 0) {
             int ret = fis.read(buffer);
-            Thread.sleep(3);
+            Thread.sleep(11);
             if(readSize != ret) {
                 if(processed + ret == origFileSize) {
                     log.info("Done!");
